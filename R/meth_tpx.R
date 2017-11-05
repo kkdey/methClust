@@ -11,8 +11,8 @@ CheckCounts <- function(counts){
 }
 
 
-meth_tpxinit <- function(meth_X, unmeth_X, inifreq, K1, alpha, verb, nbundles=1,
-                    use_squarem=FALSE, init.adapt){
+meth_tpxinit <- function(meth_X, unmeth_X, inifreq, K, verb,
+                    use_squarem=FALSE){
   if(is.matrix(inifreq)){
     if(ncol(inifreq) != K){stop("mismatch between inifreq no. of columns and K")}
     if(max(inifreq) > 1 | min(inifreq) < 0){stop("some value of inifreq lies outside [0,1] range")}
@@ -35,6 +35,7 @@ meth_tpxinit <- function(meth_X, unmeth_X, inifreq, K1, alpha, verb, nbundles=1,
   for(i in 1:Kdiff){
     freq_start <- cbind(freq_start, col_means(prop_methyl[ki[,i],]))
   }
+  inifreq <- freq_start
 
     ## Solve for map omega in NEF space
     fit <- meth_tpxfit(meth_X=meth_X, unmeth_X = unmeth_X,
@@ -77,12 +78,12 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
 #  Q0 <- col_sums(X)/sum(X)
   L <- meth_tpxlpost(meth_X=meth_X, unmeth_X = unmeth_X,
                      freq=freq, omega=omega,
-                     alpha=alpha, admix=admix, grp=grp)
+                     admix=admix, grp=grp)
 
   iter <- 1;
   while( update  && iter < tmax ){
     if(admix && wtol > 0){
-      Wfit <- tpxweights(n=nrow(X), p=ncol(X), mvo=mvo, uvo = uvo, wrd=wrd, doc=doc,
+      Wfit <- meth_tpxweights(n=nrow(meth_X), p=ncol(meth_X), mvo=mvo, uvo = uvo, wrd=wrd, doc=doc,
                          start=omega, freq=freq,  verb=0, nef=TRUE, wtol=wtol, tmax=20)
     }else{
       Wfit <- omega;
@@ -92,20 +93,19 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
 
       Wfit <- meth_normalizetpx(Wfit + 1e-15, byrow=TRUE);
       param_vec_in <- c(as.vector(logit(Wfit)),as.vector(logit(freq)));
-      res <- squarem(par=as.numeric(param_vec_in),
-                     fixptfn=tpxsquarEM,
-                     objfn= tpxlpost_squarem,
+      res <- SQUAREM::squarem(par=as.numeric(param_vec_in),
+                     fixptfn=meth_tpxsquarEM,
+                     objfn= meth_tpxlpost_squarem,
                      meth_X=meth_X,
                      unmeth_X = unmeth_X,
                      K=K,
-                     alpha=alpha,
                      admix=admix,
                      grp=grp,
                      control=list(maxiter = MAXITER_SQUAREM,
                                   trace = FALSE, square=TRUE, tol=1e-10));
 
-      res_omega <- inv.logit(matrix(res$par[1:(nrow(X)*K)], nrow=nrow(X), ncol=K));
-      res_freq <- inv.logit(matrix(res$par[-(1:(nrow(X)*K))], nrow=ncol(X), ncol=K));
+      res_omega <- inv.logit(matrix(res$par[1:(nrow(meth_X)*K)], nrow=nrow(meth_X), ncol=K));
+      res_freq <- inv.logit(matrix(res$par[-(1:(nrow(meth_X)*K))], nrow=ncol(meth_X), ncol=K));
 
       move <- list("omega"=res_omega, "freq"=res_freq);
       QNup <- list("omega"=move$omega, "freq"=move$freq, "L"=res$value.objfn, "Y"=NULL)
@@ -121,7 +121,7 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
                                freq=move$freq, omega=move$omega,
                                admix=admix, grp=grp)
       # QNup <- meth_tpxQN(move=move, Y=Y, meth_X=meth_X, unmeth_X = unmeth_X,
-      #               alpha=alpha, verb=verb,
+      #               verb=verb,
       #               admix=admix, grp=grp, doqn=qn-dif)
       # Y <- QNup$Y
     }
@@ -145,7 +145,7 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
       if(sum(abs(freq-move$freq)) < tol){ update = FALSE } }
 
     ## print
-    if(verb>0 && (iter-1)%%ceiling(10/verb)==0 && iter>0){
+    if(verb>0 && (iter-1)%%ceiling(5/verb)==0 && iter>0){
       ##if(verb>0 && iter>0){
       cat( paste( round(dif,digits), #" (", sum(abs(freq-move$freq)),")",
                   ", ", sep="") ) }
@@ -163,7 +163,7 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
 
   ## final log posterior
   L <- meth_tpxlpost(meth_X=meth_X, unmeth_X = unmeth_X,
-                     freq=freq, omega=omega, alpha=alpha, admix=admix, grp=grp)
+                     freq=freq, omega=omega, admix=admix, grp=grp)
 
   ## summary print
   if(verb>0){

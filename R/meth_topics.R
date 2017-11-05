@@ -6,11 +6,10 @@ meth_topics <- function(meth,
                         shape=NULL,
                         initopics=NULL,
                         tol=0.1,
-                        bf=FALSE,
-                        kill=2,
                         ord=TRUE,
                         verb=1,
-                        use_squarem=TRUE){
+                        sample_init = TRUE,
+                        use_squarem=FALSE){
 
   if(dim(meth)[1] != dim(unmeth)[1] | dim(meth)[2] != dim(unmeth)[2]){
     stop("meth and unmeth count matrices must have same dimensions")
@@ -18,38 +17,41 @@ meth_topics <- function(meth,
 
   ## sparsify the meth and unmeth count matrices
 
+  meth[meth == 0] <- 1e-20
+  unmeth[unmeth == 0] <- 1e-20
+
   meth_X <- CheckCounts(meth)
   unmeth_X <- CheckCounts(unmeth)
+  meth_X$v[meth_X$v == 1e-20] = 0
+  unmeth_X$v[unmeth_X$v == 1e-20] = 0
 
-  p <- ncol(X)
+  p <- ncol(meth_X)
   if(verb>0)
-    cat(sprintf("\nEstimating on a %d samples collection.\n", nrow(X)))
+    cat(sprintf("\nEstimating on a %d samples collection.\n", nrow(meth_X)))
 
   ## check the prior parameters for theta
   if(prod(shape>0) != 1){ stop("use shape > 0\n") }
 
   ##########  initialization of the methClust model   ###################
 
-  index_init <- 1:(max(2, min(ceiling(nrow(X)*.05),100)));
+  index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05),100)));
   if(sample_init==TRUE){
     samp_length <- length(index_init);
-    index_init <- sample(1:nrow(X),samp_length);
+    index_init <- sample(1:nrow(meth_X),samp_length);
   }
 
-  initopics <- meth_tpxinit(X[index_init,], initopics, K[1],
-                       shape, verb, nbundles=1, use_squarem=FALSE, init.adapt)
+  initopics <- meth_tpxinit(meth_X[index_init,], unmeth_X[index_init,],
+                            initopics, K, verb, use_squarem=FALSE)
 
   tpx <- meth_tpxfit(meth_X, unmeth_X, freq = initopics,
-                   alpha=shape, tol, verb, use_squarem,
-                   admix=TRUE, method_admix=1, grp=NULL,
+                   tol, verb, use_squarem, admix=TRUE, grp=NULL,
                    tmax = 10000, wtol=10^{-4}, qn=100)
 
   K <- tpx$K
   L <- tpx$L
 
   ## clean up and out
-  if(ord){ worder <- order(col_sums(tpx$omega), decreasing=TRUE) }
-  else{ worder <- 1:K }
+  if(ord){ worder <- order(col_sums(tpx$omega), decreasing=TRUE) }else{ worder <- 1:K }
 
   freq=matrix(tpx$freq[,worder], ncol=K, dimnames=list(phrase=dimnames(meth_X)[[2]], topic=paste(1:K)) )
   omega=matrix(tpx$omega[,worder], ncol=K, dimnames=list(document=NULL, topic=paste(1:K)) )
@@ -57,7 +59,7 @@ meth_topics <- function(meth,
 
   ## topic object
   out <- list(K=K, L = L,
-              theta=theta, omega=omega,
+              freq=freq, omega=omega,
               meth_X= meth_X, unmeth_X = unmeth_X)
   class(out) <- "topics"
   invisible(out) }

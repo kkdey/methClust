@@ -1,0 +1,99 @@
+\documentclass[a4paper, 12pt]{article}
+\usepackage{mathptmx}
+\usepackage[utf8x]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[margin={2cm, 2cm}]{geometry}
+\DeclareSymbolFont{extraup}{U}{zavm}{m}{n}
+\DeclareMathSymbol{\varheart}{\mathalpha}{extraup}{86}
+\DeclareMathSymbol{\vardiamond}{\mathalpha}{extraup}{87}
+\usepackage{nameref, hyperref}
+\usepackage{float}
+\usepackage{cite}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\setlength{\parskip}{1em}
+\bibliographystyle{plos2015}
+
+\begin{document}
+
+\section{Grade of Membership Model for modeling methylation}
+
+Consider a bisulfite sequencing experiment that records the number of methylated and 
+unmethylated sites per bin across the genome. The model can be formulated as follows for 
+bin $b$ in the genome and for sample $n$.
+
+$$ M_{nb} \sim Bin \left (Y_{nb} = M_{nb} + U_{nb} , p_{nb} \right ) $$
+
+where $M_{nb}$ and $U_{nb}$ denote the number of methylated and unmethylated  sites 
+in bin $b$ and for sample $n$ respectively. $p_{nb}$ represents the probability of methylation, which
+under the Grade of Membership model assumption 
+
+$$ p_{nb} = \sum_{k=1}^{K} \omega_{nk} g_{kb}  $$
+
+where $\omega_{nk}$ represent the grades of membership of the $n$th sample in the $k$th methylation
+profile and $g_{kb}$ represents the probability of methylation in bin $b$ for the $k$th methylation profile.
+Note that here we assume that the probability of methylation if fixed for all methylation sites in a particular 
+bin for all the clusters. 
+
+Intuitively we assume that each bin comprises of  methylations coming from one of the $K$ methylation profiles 
+or clusters in the grade of membership model. 
+
+Suppose for each CpG site $s$, we define a latent variable $Z_{nks}$ to be an indicator variable for cluster/profile $k$ for the site $s$ in sample $n$
+
+$$ Pr (Z_{nks} = 1 ) = \frac{\omega_{nk} g_{k, b(s)}}{\sum_{l} \omega_{nl} g_{l, b(s)}}  = p_{nk,b(s)}$$
+
+where $b(s)$ denotes the bin that the site $s$ belongs to.
+
+Denoting $Y_{nb}$ as the total number of sites in the bin $b$, we write 
+
+$$ Y_{nb} = Y_{n1b} + Y_{n2b} + \cdots + Y_{nKb} $$
+
+where we denote 
+
+$$ Y_{nkb} = M_{nkb} + U_{nkb} $$
+
+and 
+
+$$ M_{nkb} | Y_{nkb}  \sim Bin (Y_{nkb}, f_{kb} ) $$
+
+$$ \left( Y_{n1b}, Y_{n2b}, \cdots, Y_{nKb} \right ) \sim Mult \left (Y_{nb} ; \omega_{n1}, \omega_{n2}, \cdots, \omega_{nK} \right )  $$
+
+$$E \left ( M_{nkb} | Y_{nb}  \right) = E \left( \left (M_{nkb} | Y^{(t)}_{nkb} \right) | Y_{nb} \right )  = E \left ( Y_{nkb} g^{(t)}_{kb} | Y_{nb} \right )  = Y_{nb} \omega^{(t)}_{nk} g^{(t)}_{kb} $$
+
+But we would like to compute $ E(M_{nkb} | M_{nb} ) $
+
+$$ \sum_{k} E(M_{nkb} | M_{nb} ) = M_{nb} $$
+
+$$ E \left( M_{nb} | Y_{nb} \right) = \sum_{k=1}^{K} E \left ( M_{nkb} | Y_{nb}  \right) = Y_{nb} \sum_{l} \omega^{(t)}_{nl} g^{(t)}_{lb} $$
+
+$$ A^{(t)}_{nkb} = E \left (M_{nkb} | M_{nb}, Y_{nb} \right ) = M_{nb} \frac{\omega^{(t)}_{nk} g^{(t)}_{kb}}{\sum_{l} \omega^{(t)}_{nl} g^{(t)}_{lb} } $$
+
+Similarly one can show that 
+
+$$  B^{(t)}_{nkb} = E \left (U_{nkb} | U_{nb}, Y_{nb} \right ) = U_{nb} \frac{\omega^{(t)}_{nk} (1 - g^{(t)}_{kb})}{\sum_{l} \omega^{(t)}_{nl} (1 - g^{(t)}_{lb}) }  $$
+
+
+Assume  now $M_{nkb}$ and $U_{nkb}$ are the latent variables in the EM algorithm. Then the EM log-likelihood is given by 
+
+\begin{eqnarray}
+E_{L | Data} \left [ \log Pr (Data, L | Param) \right ] & = \sum_{n, b} \sum_{k} E_{U_{nkb}, M_{nkb} | M_{nb}, U_{nb}, \omega, g} \left [ \log Pr (U_{nkb}, M_{nkb}, M_{nb}, U_{nb} | \omega, g \right ]  \\
+& \propto \sum_{n, b} \sum_{k}  A^{(t)}_{nkb} \times \log(\omega_{nk} g_{kb} )  + B^{(t)}_{nkb} \times \log (\omega_{nk} (1 - g_{kb} ) )    \\
+& \propto \sum_{n, b} \sum_{k} \log(\omega_{nk}) (A^{(t)}_{nkb} + B^{(t)}_{nkb} ) + \log(g_{kb}) A^{(t)}_{nkb} + \log(1- g_{kb}) B^{(t)}_{nkb} \\
+\end{eqnarray}
+
+Optimizing for $\omega^{(t+1)}_{nk}$ under the constraint that $\sum_{k=1}^{K} \omega^{(t+1)}_{nk} = 1$, we get 
+
+$$ \omega^{(t+1)}_{nk} = \frac{\sum_{b} (A^{(t)}_{nkb} + B^{(t)}_{nkb} )} {\sum_{l}\sum_{b} (A^{(t)}_{nlb} + B^{(t)}_{nlb} )} = \frac{1}{Y_{n+}} \sum_{b} (A^{(t)}_{nkb} + B^{(t)}_{nkb}) $$
+
+where $Y_{n+}$ is the total number of sites for sample $n$.
+
+Similarly, we can get the estimates for $g^{(t+1)}_{kb}$ as 
+
+$$ g^{(t+1)}_{kb} = \frac{\sum_{n} A^{(t)}_{nkb}} {\sum_{n} (A^{(t)}_{nkb} + B^{(t)}_{nkb} )} $$
+
+
+
+\end{document}
+
+

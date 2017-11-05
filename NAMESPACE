@@ -1,0 +1,9 @@
+useDynLib(methClust)
+import(slam)
+import(SQUAREM)
+import(boot)
+
+export(stm_tfidf,
+       meth_normalizetpx,
+       rdir,
+       meth_topics)

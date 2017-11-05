@@ -38,22 +38,22 @@ meth_tpxinit <- function(meth_X, unmeth_X, inifreq, K1, alpha, verb, nbundles=1,
 
     ## Solve for map omega in NEF space
     fit <- meth_tpxfit(meth_X=meth_X, unmeth_X = unmeth_X,
-                       freq=inifreq, alpha=alpha, tol=tol, verb=verb,
-                       use_squarem = FALSE)
+                       freq=inifreq, tol=100, verb=0,
+                       use_squarem = FALSE, admix=TRUE, grp=NULL,
+                       tmax = 10, wtol=10^{-2}, qn=100, MAXITER_SQUAREM = 3)
 
   return(fit$freq)
 }
 
-meth_tpxfit <- function(meth_X, unmeth_X, freq, alpha, tol, verb,
-                        use_squarem, admix, method_admix, grp, tmax, wtol,
-                        qn){
+meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
+                        use_squarem, admix, grp, tmax, wtol,
+                        qn, MAXITER_SQUAREM = 3){
   if(!inherits(meth_X,"simple_triplet_matrix")){ stop("meth_X needs to be a simple_triplet_matrix") }
   if(!inherits(unmeth_X,"simple_triplet_matrix")){ stop("unmeth_X needs to be a simple_triplet_matrix") }
 
   K <- ncol(freq)
-  n <- nrow(X)
-  p <- ncol(X)
-  m <- row_sums(X)
+  n <- nrow(meth_X)
+  p <- ncol(meth_X)
 
   mvo <- meth_X$v[order(meth_X$i)]
   uvo <- unmeth_X$v[order(unmeth_X$i)]
@@ -61,9 +61,9 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, alpha, tol, verb,
   doc <- c(0,cumsum(as.double(table(factor(meth_X$i, levels=c(1:nrow(meth_X)))))))
 
   system.time(omega <- meth_tpxweights(n=n, p=p, mvo=mvo, uvo= uvo, wrd=wrd,
-                                       doc=doc,
-                                       start=tpxOmegaStart(meth_X, unmeth_X, freq),
-                                       freq=freq))
+                          doc=doc,
+                          start=meth_tpxOmegaStart(meth_X, unmeth_X, freq),
+                          freq=freq))
 
   ## tracking
   iter <- 0
@@ -74,13 +74,14 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, alpha, tol, verb,
     digits <- max(1, -floor(log(tol, base=10))) }
 
   Y <- NULL # only used for qn > 0
-  Q0 <- col_sums(X)/sum(X)
-  L <- meth_tpxlpost(X=X, freq=freq, omega=omega,
+#  Q0 <- col_sums(X)/sum(X)
+  L <- meth_tpxlpost(meth_X=meth_X, unmeth_X = unmeth_X,
+                     freq=freq, omega=omega,
                      alpha=alpha, admix=admix, grp=grp)
 
   iter <- 1;
   while( update  && iter < tmax ){
-    if(admix && wtol > 0 && (iter-1)%%nbundles==0){
+    if(admix && wtol > 0){
       Wfit <- tpxweights(n=nrow(X), p=ncol(X), mvo=mvo, uvo = uvo, wrd=wrd, doc=doc,
                          start=omega, freq=freq,  verb=0, nef=TRUE, wtol=wtol, tmax=20)
     }else{
@@ -96,13 +97,11 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, alpha, tol, verb,
                      objfn= tpxlpost_squarem,
                      meth_X=meth_X,
                      unmeth_X = unmeth_X,
-                     m=m,
                      K=K,
                      alpha=alpha,
                      admix=admix,
-                     method_admix=method_admix,
                      grp=grp,
-                     control=list(maxiter = 5,
+                     control=list(maxiter = MAXITER_SQUAREM,
                                   trace = FALSE, square=TRUE, tol=1e-10));
 
       res_omega <- inv.logit(matrix(res$par[1:(nrow(X)*K)], nrow=nrow(X), ncol=K));
@@ -115,23 +114,24 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, alpha, tol, verb,
     if(!use_squarem){
       ## joint parameter EM update
       Wfit <- meth_normalizetpx(Wfit + 1e-15, byrow=TRUE);
-      move <- meth_tpxEM(meth_X=meth_X, unmeth_X = unmeth_X,
-                    m=m, freq=freq, omega=Wfit, alpha=alpha, admix=admix,
-                    method_admix=method_admix, grp=grp)
-      QNup <- meth_tpxQN(move=move, Y=Y, meth_X=meth_X, unmeth_X = unmeth_X,
-                    alpha=alpha, verb=verb,
-                    admix=admix, grp=grp, doqn=qn-dif)
-      move <- QNup$move
-      Y <- QNup$Y
+      move <- meth_tpxEM(meth=as.matrix(meth_X), unmeth = as.matrix(unmeth_X),
+                    freq=freq, omega=Wfit, admix=admix, grp=grp)
+      QNup <- move
+      QNup$L <-  meth_tpxlpost(meth_X=meth_X, unmeth_X = unmeth_X,
+                               freq=move$freq, omega=move$omega,
+                               admix=admix, grp=grp)
+      # QNup <- meth_tpxQN(move=move, Y=Y, meth_X=meth_X, unmeth_X = unmeth_X,
+      #               alpha=alpha, verb=verb,
+      #               admix=admix, grp=grp, doqn=qn-dif)
+      # Y <- QNup$Y
     }
 
     if(QNup$L < L){  # happens on bad Wfit, so fully reverse
       if(verb > 10){ cat("_reversing a step_") }
       move <- meth_tpxEM(meth_X=meth_X, unmeth_X = unmeth_X,
-                         m=m, freq=freq, omega=omega, alpha=alpha, admix=admix,
-                         method_admix=method_admix,grp=grp)
-      QNup$L <-  meth_tpxlpost(X=X, freq=move$freq,
-                               omega=move$omega, alpha=alpha,
+                         freq=freq, omega=omega, admix=admix, grp=grp)
+      QNup$L <-  meth_tpxlpost(meth_X=meth_X, unmeth_X = unmeth_X,
+                               freq=move$freq, omega=move$omega,
                                admix=admix, grp=grp)
     }
 
@@ -172,66 +172,81 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, alpha, tol, verb,
     cat("\n")
   }
 
-  out <- list(freq=freq, omega=omega, K=K, alpha=alpha, L=L, iter=iter)
+  out <- list(freq=freq, omega=omega, K=K, L=L, iter=iter)
   invisible(out)
 }
 
 
-meth_tpxlpost <- function(X, freq, omega, alpha, admix=TRUE, grp=NULL)
+meth_tpxlpost <- function(meth_X, unmeth_X, freq, omega, admix=TRUE, grp=NULL)
 {
   omega[omega==1] <- 1 - 1e-10;
   omega[omega==0] <- 1e-10;
   omega <- meth_normalizetpx(omega, byrow = TRUE)
-  if(!inherits(X,"simple_triplet_matrix")){ stop("X needs to be a simple_triplet_matrix.") }
+  if(!inherits(meth_X,"simple_triplet_matrix")){ stop("meth_X needs to be a simple_triplet_matrix.") }
+  if(!inherits(unmeth_X,"simple_triplet_matrix")){ stop("unmeth_X needs to be a simple_triplet_matrix.") }
+
   K <- ncol(freq)
 
   if(admix){
-    prob <- meth_tpxQ(freq=freq, omega=omega, doc=X$i, wrd=X$j)
+    prob <- meth_tpxQ(freq=freq, omega=omega, doc=meth_X$i, wrd=meth_X$j)
     L <- sum( meth_X$v*log(prob) +  unmeth_X$v*log(1 - prob))
   }else{ L <- sum(meth_tpxMixQ(X, omega, freq, grp)$lqlhd) }
   L <- L + sum(log(omega))/K
 
   return(L) }
 
-meth_tpxlpost_squarem <- function(param_vec_in,  meth_X, unmeth_X, m, K,
-                             alpha, admix=TRUE, method_admix, grp=NULL)
+meth_tpxllik <- function(meth_X, unmeth_X, freq, omega){
+  wrd <- meth_X$j[order(meth_X$i)]-1
+  prob <- omega %*% t(freq)
+  prob_X <- slam::as.simple_triplet_matrix(prob)
+  out <- .C("wllhd",
+            nwrd = as.integer(length(wrd)),
+            m = as.double(meth_X$v),
+            u = as.double(unmeth_X$v),
+            q = as.double(prob_X$v),
+            package = "methClust")
+  return(out)
+}
+
+meth_tpxlpost_squarem <- function(param_vec_in,  meth, unmeth,  K,
+                             admix=TRUE, grp=NULL)
 {
-  omega_in <- inv.logit(matrix(param_vec_in[1:(nrow(meth_X)*K)], nrow=nrow(meth_X), ncol=K));
-  freq_in <- inv.logit(matrix(param_vec_in[-(1:(nrow(meth_X)*K))], nrow=ncol(meth_X), ncol=K))
-  return(meth_tpxlpost(X, freq_in, omega_in, alpha, admix, grp))
+  meth_X <- CheckCounts(meth)
+  unmeth_X <- CheckCounts(unmeth)
+  omega_in <- inv.logit(matrix(param_vec_in[1:(nrow(meth)*K)], nrow=nrow(meth), ncol=K));
+  freq_in <- inv.logit(matrix(param_vec_in[-(1:(nrow(meth)*K))], nrow=ncol(meth), ncol=K))
+  return(meth_tpxlpost(meth_X, unmeth_X, freq_in, omega_in, admix, grp))
 }
 
 
-meth_tpxsquarEM <- function(param_vec_in, meth_X, unmeth_X, m, K,
-                       alpha, admix, method_admix, grp){
-  omega_in <- inv.logit(matrix(param_vec_in[1:(nrow(meth_X)*K)], nrow=nrow(meth_X), ncol=K));
-  freq_in <- inv.logit(matrix(param_vec_in[-(1:(nrow(meth_X)*K))], nrow=ncol(meth_X), ncol=K))
-  out <- meth_tpxEM(meth_X, unmeth_X, m, freq_in, omega_in, alpha, admix, method_admix, grp);
+meth_tpxsquarEM <- function(param_vec_in, meth, unmeth, K, admix, grp){
+  omega_in <- inv.logit(matrix(param_vec_in[1:(nrow(meth)*K)], nrow=nrow(meth), ncol=K));
+  freq_in <- inv.logit(matrix(param_vec_in[-(1:(nrow(meth)*K))], nrow=ncol(meth), ncol=K))
+  out <- meth_tpxEM(meth, unmeth, freq_in, omega_in, admix, grp);
   param_vec_out <- c(as.vector(logit(out$omega)),as.vector(logit(out$freq)))
   return(param_vec_out)
 }
 
-meth_tpxEM <- function(meth_X, unmeth_X, m, freq, omega, alpha, admix,
-                       method_admix, grp)
+meth_tpxEM <- function(meth, unmeth, freq, omega, admix, grp)
 {
-  n <- nrow(X)
-  p <- ncol(X)
+  n <- nrow(omega)
+  p <- nrow(freq)
   K <- ncol(freq)
 
   omega_in <- omega
   freq_in <- freq
   W <- array(0, c(dim(omega_in)[1], dim(freq_in)[1], dim(omega_in)[2]))
 
-  for(n in 1:dim(omega_iter)[1]){
-    W[n, , ] <- t(replicate(dim(freq_iter)[1], omega_iter[n,])) * freq_iter
+  for(n in 1:dim(omega_in)[1]){
+    W[n, , ] <- t(replicate(dim(freq_in)[1], omega_in[n,])) * freq_in
   }
 
-  V <- aperm(replicate(dim(freq_iter)[1], omega_iter), c(1,3,2)) - W
+  V <- aperm(replicate(dim(freq_in)[1], omega_in), c(1,3,2)) - W
   Wnorm <- aperm(apply(W, c(1,2), function(x) return(x/sum(x))), c(2,3,1))
   Vnorm <- aperm(apply(V, c(1,2), function(x) return(x/sum(x))), c(2,3,1))
 
-  A <- replicate(dim(omega_iter)[2], M) * Wnorm
-  B <- replicate(dim(omega_iter)[2], U) * Vnorm
+  A <- replicate(dim(omega_in)[2], meth) * Wnorm
+  B <- replicate(dim(omega_in)[2], unmeth) * Vnorm
 
   omega_unscaled <- apply(A, c(1,3), function(x) return(sum(x))) + apply(B, c(1,3), function(x) return(sum(x)))
   omega_out <- t(apply(omega_unscaled, 1, function(x) return(x/sum(x))))
@@ -265,53 +280,15 @@ meth_tpxQ <- function(freq, omega, doc, wrd){
 
   return( out$q ) }
 
-## model and component likelihoods for mixture model
-meth_tpxMixQ <- function(X, omega, freq, grp=NULL, qhat=FALSE){
-  if(is.null(grp)){ grp <- rep(1, nrow(X)) }
-
-  omega[omega==1] <- 1 - 1e-14;
-  omega[omega==0] <- 1e-14;
-  omega <- meth_normalizetpx(omega, byrow = TRUE)
-
-  K <- ncol(omega)
-  n <- nrow(X)
-  mixhat <- .C("RmixQ",
-               n = as.integer(nrow(X)),
-               p = as.integer(ncol(X)),
-               K = as.integer(K),
-               N = as.integer(length(X$v)),
-               B = as.integer(nrow(omega)),
-               cnt = as.double(X$v),
-               doc = as.integer(X$i-1),
-               wrd = as.integer(X$j-1),
-               grp = as.integer(as.numeric(grp)-1),
-               omega = as.double(omega),
-               freq = as.double(freq),
-               Q = double(K*n),
-               PACKAGE="methClust")
-  ## model and component likelihoods
-  lQ <- matrix(mixhat$Q, ncol=K)
-  lqlhd <- log(row_sums(exp(lQ)))
-  lqlhd[is.infinite(lqlhd)] <- -600 # remove infs
-  if(qhat){
-    qhat <- exp(lQ-lqlhd)
-    ## deal with numerical overload
-    infq <- row_sums(qhat) < .999
-    if(sum(infq)>0){
-      qhat[infq,] <- 0
-      qhat[n*(apply(matrix(lQ[infq,],ncol=K),1,which.max)-1) + (1:n)[infq]] <- 1 }
-  }
-  return(list(lQ=lQ, lqlhd=lqlhd, qhat=qhat)) }
-
 
 meth_tpxOmegaStart <- function(meth_X, unmeth_X, freq)
 {
   if(!inherits(meth_X,"simple_triplet_matrix")){ stop("meth_X needs to be a simple_triplet_matrix.") }
   if(!inherits(unmeth_X,"simple_triplet_matrix")){ stop("unmeth_X needs to be a simple_triplet_matrix.") }
   prop_X <- (meth_X)/(meth_X + unmeth_X)
-  omega <- try(tcrossprod_simple_triplet_matrix(prop_X, solve(t(freq)%*%freq)%*%t(freq)), silent=TRUE )
-  if(inherits(omega,"try-error")){ return( matrix( 1/ncol(freq), nrow=nrow(X), ncol=ncol(freq) ) ) }
-  omega[omega <= 0] <- .5
+  omega <- try(slam::tcrossprod_simple_triplet_matrix(prop_X, solve(t(freq)%*%freq)%*%t(freq)), silent=TRUE )
+  if(inherits(omega,"try-error")){ return( matrix( 1/ncol(freq), nrow=nrow(meth_X), ncol=ncol(freq) ) ) }
+  omega[omega < 0] <- 0
   return( meth_normalizetpx(omega, byrow=TRUE) )
 }
 

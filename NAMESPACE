@@ -6,4 +6,5 @@ import(boot)
 export(stm_tfidf,
        meth_normalizetpx,
        rdir,
+       CheckCounts,
        meth_topics)

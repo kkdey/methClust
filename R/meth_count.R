@@ -2,11 +2,11 @@
 
 ## converting count to frequency matrix
 meth_normalizetpx <- function(x, byrow=TRUE){
-  if(byrow){ s <- row_sums(x)
+  if(byrow){ s <- slam::row_sums(x)
   s[s==0] <- 1
   return( x/s ) }
   else{
-    s <- col_sums(x)
+    s <- slam::col_sums(x)
     s[s==0] <- 1
     return(t(t(x)/s)) }
 }

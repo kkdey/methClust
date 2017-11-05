@@ -29,7 +29,7 @@ void wgrad(double *grad, int nwrd, int K, int *wrd, double *m,
   zero_dvec(grad,K);
   for(k=0; k<K; k++)
   { for(j=0; j<nwrd; j++) {
-    grad[k] += (freq[k][wrd[j]]*m[j]/q[j] - freq[k][wrd[j]]*u[j]/(1 - q[j]));
+    grad[k] += (freq[k][wrd[j]]*m[j]/q[j]) - (freq[k][wrd[j]]*u[j]/(1 - q[j]));
   }
     if(nef) grad[k] += 1.0/(w[k]*((double) K)); }
 }
@@ -42,7 +42,7 @@ void wneghess_lowtri(double *nH, int nwrd, int K, int *wrd, double *m,
     if(nef) nH[k*(K+1)] += 1.0/(w[k]*w[k]*((double) K));
     for(h=k; h<K; h++)
       for(j=0; j<nwrd; j++)
-        nH[k*K+h] += m[j]*freq[k][wrd[j]]*freq[h][wrd[j]]/(q[j]*q[j]) - u[j]*freq[k][wrd[j]]*freq[h][wrd[j]]/(q[j]*q[j]);
+        nH[k*K+h] += (m[j]*freq[k][wrd[j]]*freq[h][wrd[j]]/(q[j]*q[j])) + (u[j]*freq[k][wrd[j]]*freq[h][wrd[j]]/((1 -q[j])*(1 -q[j])));
   }
 }
 

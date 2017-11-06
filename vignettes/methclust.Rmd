@@ -142,7 +142,7 @@ We now discuss the implementation of the model.
 - Initialize the parameters of the model $\omega^{(0)}_{nk}$ and $g^{(0)}_{kb}$ . We draw a random subset of samples to define a cluster and compute $g^{(0)}$ values based on the mean frequency of methylation of the samples in each of the clusters. The corresponding $\omega^{(0)}$ values are computed from the linear regression of 
 
 $$ log \left (\frac{M_{nb}}{U_{nb} + M_{nb}} \right ) = \omega_{N \times K}g^{(0)} _{K ]\times B} + \epsilon $$
-which we solve to estimate $\omeag^{(0)}$.
+which we solve to estimate $\omega^{(0)}$.
 
 We then use the $g^{(0)}$ and $\omega^{(0)}$ values as starting points to a methClust model fit on a small sample training data to get refined estimates $g^{(1)}$ and $\omega^{(1)}$, which then form the starting points of the EM algorithm.
 

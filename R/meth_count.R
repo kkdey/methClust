@@ -13,7 +13,7 @@ meth_normalizetpx <- function(x, byrow=TRUE){
 
 ## converting a count/freq matrix to tfidf
 stm_tfidf <- function(x){
-  idf <- log( nrow(x) ) - log(col_sums(x>0) + 1)
+  idf <- log( nrow(x) ) - log(slam::col_sums(x>0) + 1)
   t( t(x) * idf )
 }
 

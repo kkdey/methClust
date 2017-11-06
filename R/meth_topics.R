@@ -51,7 +51,7 @@ meth_topics <- function(meth,
   L <- tpx$L
 
   ## clean up and out
-  if(ord){ worder <- order(col_sums(tpx$omega), decreasing=TRUE) }else{ worder <- 1:K }
+  if(ord){ worder <- order(slam::col_sums(tpx$omega), decreasing=TRUE) }else{ worder <- 1:K }
 
   freq=matrix(tpx$freq[,worder], ncol=K, dimnames=list(phrase=dimnames(meth_X)[[2]], topic=paste(1:K)) )
   omega=matrix(tpx$omega[,worder], ncol=K, dimnames=list(document=NULL, topic=paste(1:K)) )

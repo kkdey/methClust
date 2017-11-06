@@ -3,7 +3,7 @@ CheckCounts <- function(counts){
   if(class(counts)[1] == "TermDocumentMatrix"){ counts <- t(counts) }
   if(is.null(dimnames(counts)[[1]])){ dimnames(counts)[[1]] <- paste("doc",1:nrow(counts)) }
   if(is.null(dimnames(counts)[[2]])){ dimnames(counts)[[2]] <- paste("wrd",1:ncol(counts)) }
-  empty <- row_sums(counts) == 0
+  empty <- slam::row_sums(counts) == 0
   if(sum(empty) != 0){
     counts <- counts[!empty,]
     cat(paste("Removed", sum(empty), "blank documents.\n")) }
@@ -96,8 +96,8 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
       res <- SQUAREM::squarem(par=as.numeric(param_vec_in),
                      fixptfn=meth_tpxsquarEM,
                      objfn= meth_tpxlpost_squarem,
-                     meth_X=meth_X,
-                     unmeth_X = unmeth_X,
+                     meth= as.matrix(meth_X),
+                     unmeth = as.matrix(unmeth_X),
                      K=K,
                      admix=admix,
                      grp=grp,
@@ -128,7 +128,7 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
 
     if(QNup$L < L){  # happens on bad Wfit, so fully reverse
       if(verb > 10){ cat("_reversing a step_") }
-      move <- meth_tpxEM(meth_X=meth_X, unmeth_X = unmeth_X,
+      move <- meth_tpxEM(meth=as.matrix(meth_X), unmeth = as.matrix(unmeth_X),
                          freq=freq, omega=omega, admix=admix, grp=grp)
       QNup$L <-  meth_tpxlpost(meth_X=meth_X, unmeth_X = unmeth_X,
                                freq=move$freq, omega=move$omega,
@@ -211,8 +211,13 @@ meth_tpxllik <- function(meth_X, unmeth_X, freq, omega){
 meth_tpxlpost_squarem <- function(param_vec_in,  meth, unmeth,  K,
                              admix=TRUE, grp=NULL)
 {
+  meth[meth == 0] <- 1e-20
+  unmeth[unmeth == 0] <- 1e-20
   meth_X <- CheckCounts(meth)
   unmeth_X <- CheckCounts(unmeth)
+  meth_X$v[meth_X$v == 1e-20] = 0
+  unmeth_X$v[unmeth_X$v == 1e-20] = 0
+
   omega_in <- inv.logit(matrix(param_vec_in[1:(nrow(meth)*K)], nrow=nrow(meth), ncol=K));
   freq_in <- inv.logit(matrix(param_vec_in[-(1:(nrow(meth)*K))], nrow=ncol(meth), ncol=K))
   return(meth_tpxlpost(meth_X, unmeth_X, freq_in, omega_in, admix, grp))
@@ -227,31 +232,28 @@ meth_tpxsquarEM <- function(param_vec_in, meth, unmeth, K, admix, grp){
   return(param_vec_out)
 }
 
-meth_tpxEM <- function(meth, unmeth, freq, omega, admix, grp)
+meth_tpxEM <- function(meth, unmeth, freq_in, omega_in, admix, grp)
 {
-  n <- nrow(omega)
-  p <- nrow(freq)
-  K <- ncol(freq)
+  n <- nrow(omega_in)
+  p <- nrow(freq_in)
+  K <- ncol(freq_in)
 
-  omega_in <- omega
-  freq_in <- freq
-  W <- array(0, c(dim(omega_in)[1], dim(freq_in)[1], dim(omega_in)[2]))
+  m_lambda <- omega_in %*% t(freq_in)
+  m_temp <- (meth/m_lambda)
+  m_matrix <- (m_temp %*% freq_in)*omega_in
 
-  for(n in 1:dim(omega_in)[1]){
-    W[n, , ] <- t(replicate(dim(freq_in)[1], omega_in[n,])) * freq_in
-  }
+  u_lambda <- omega_in %*% t(1 - freq_in)
+  u_temp <- (unmeth/u_lambda)
+  u_matrix <- (u_temp %*% (1 - freq_in)) * omega_in
 
-  V <- aperm(replicate(dim(freq_in)[1], omega_in), c(1,3,2)) - W
-  Wnorm <- aperm(apply(W, c(1,2), function(x) return(x/sum(x))), c(2,3,1))
-  Vnorm <- aperm(apply(V, c(1,2), function(x) return(x/sum(x))), c(2,3,1))
+  omega_out <- meth_normalizetpx(m_matrix + u_matrix + (1/(n*K)), byrow=TRUE)
 
-  A <- replicate(dim(omega_in)[2], meth) * Wnorm
-  B <- replicate(dim(omega_in)[2], unmeth) * Vnorm
+  m_t_matrix <- (t(m_temp) %*% omega_in)*freq_in
+  u_t_matrix <- (t(u_temp) %*% omega_in)*(1-freq_in)
 
-  omega_unscaled <- apply(A, c(1,3), function(x) return(sum(x))) + apply(B, c(1,3), function(x) return(sum(x)))
-  omega_out <- t(apply(omega_unscaled, 1, function(x) return(x/sum(x))))
-
-  freq_out <- 1/(1 + apply(B, c(2,3), sum)/apply(A, c(2,3), sum))
+  freq_out <- m_t_matrix/(m_t_matrix + u_t_matrix)
+  freq_out[freq_out < 0] = 0
+  freq_out[freq_out > 1] = 1
 
   return(list(freq=freq_out, omega=omega_out))
 }

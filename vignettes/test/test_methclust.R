@@ -36,7 +36,7 @@ U = Y - M
 
 library(slam)
 library(methClust)
-topics <- meth_topics(M, U, K=2, tol = 10)
+topics <- meth_topics(M, U, K=2, tol = 10, use_squarem = TRUE)
 
 omega <- topics$omega
 

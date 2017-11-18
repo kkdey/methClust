@@ -9,6 +9,7 @@ meth_topics <- function(meth,
                         ord=TRUE,
                         verb=1,
                         sample_init = TRUE,
+                        NUM_INDICES_START = NULL,
                         use_squarem=FALSE){
 
   if(dim(meth)[1] != dim(unmeth)[1] | dim(meth)[2] != dim(unmeth)[2]){
@@ -34,10 +35,20 @@ meth_topics <- function(meth,
 
   ##########  initialization of the methClust model   ###################
 
-  index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05),100)));
   if(sample_init==TRUE){
-    samp_length <- length(index_init);
+    if(is.null(NUM_INDICES_START)){
+      pre_index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05) + 2*K, 100)));
+    }else{
+      pre_index_init <- 1:NUM_INDICES_START;
+    }
+    samp_length <- length(pre_index_init);
     index_init <- sample(1:nrow(meth_X),samp_length);
+  }else{
+    if(is.null(NUM_INDICES_START)){
+      index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05) + 2*K, 100)));
+    }else{
+      index_init <- 1:NUM_INDICES_START;
+    }
   }
 
   initopics <- meth_tpxinit(meth_X[index_init,], unmeth_X[index_init,],

@@ -26,6 +26,11 @@ meth_topics <- function(meth,
   meth_X$v[meth_X$v == 1e-20] = 0
   unmeth_X$v[unmeth_X$v == 1e-20] = 0
 
+  zero_idx <- which(meth_X$v == 0 & unmeth_X$v == 0)
+  mean_nonzero_idx <- mean(meth_X$v[-zero_idx]/unmeth_X$v[-zero_idx])
+  meth_X$v[zero_idx] <- 1
+  unmeth_X$v[zero_idx] <- ceiling(1/mean_nonzero_idx)
+
   p <- ncol(meth_X)
   if(verb>0)
     cat(sprintf("\nEstimating on a %d samples collection.\n", nrow(meth_X)))
@@ -37,7 +42,7 @@ meth_topics <- function(meth,
 
   if(sample_init==TRUE){
     if(is.null(NUM_INDICES_START)){
-      pre_index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05) + 2*K, 100)));
+      pre_index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05) + 2*K, 25)));
     }else{
       pre_index_init <- 1:NUM_INDICES_START;
     }
@@ -45,7 +50,7 @@ meth_topics <- function(meth,
     index_init <- sample(1:nrow(meth_X),samp_length);
   }else{
     if(is.null(NUM_INDICES_START)){
-      index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05) + 2*K, 100)));
+      index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05) + 2*K, 25)));
     }else{
       index_init <- 1:NUM_INDICES_START;
     }

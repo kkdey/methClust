@@ -263,7 +263,7 @@ the true grade of membership matrix `omega_sim` closely, thereby serving as a va
 of the model implementation.
 
 
-```{r eval=TRUE, warning=FALSE, fig.align="center", fig.show="asis", dpi=144, fig.width=5, fig.height=7, out.width="5in", out.height="7in"}
+```{r eval=TRUE, warning=FALSE, fig.align="center", fig.show="asis", dpi=144, fig.width=7, fig.height=5, out.width="7in", out.height="5in"}
 barplot(t(topics$omega),
         col = 2:(K+1),
         axisnames = F, space = 0,

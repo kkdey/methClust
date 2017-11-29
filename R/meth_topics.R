@@ -47,7 +47,7 @@ meth_topics <- function(meth,
       pre_index_init <- 1:NUM_INDICES_START;
     }
     samp_length <- length(pre_index_init);
-    index_init <- sample(1:nrow(meth_X),samp_length);
+    index_init <- sample(1:nrow(meth_X),samp_length, replace = FALSE);
   }else{
     if(is.null(NUM_INDICES_START)){
       index_init <- 1:(max(2, min(ceiling(nrow(meth_X)*.05) + 2*K, 25)));

@@ -57,7 +57,10 @@ meth_topics <- function(meth,
   }
 
   initopics <- meth_tpxinit(meth_X[index_init,], unmeth_X[index_init,],
-                            initopics, K, verb, use_squarem=FALSE)
+                            initopics, (K+1), verb, use_squarem=FALSE)
+  initopics2 <- initopics[,(K+1)]
+  initopics1 <- initopics[,sample(1:K, K-1, replace = FALSE)]
+  initopics <- cbind(initopics1, initopics2)
 
   tpx <- meth_tpxfit(meth_X, unmeth_X, freq = initopics,
                    tol, verb, use_squarem, admix=TRUE, grp=NULL,

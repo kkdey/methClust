@@ -200,7 +200,7 @@ void Romega( int *n, int *p, int *K,
 # endif
   for(i=0; i<(*n); i++)
     if(sqpw(*p, doc[i+1]-doc[i], *K, &wrd[doc[i]], &m[doc[i]], &u[doc[i]],  freq,  &W[i*(*K)], *nef, *tol, *tmax, speakup) == 0)
- //     myprintf(mystdout, "Failed to converge for omega at i = %d\n", i+1);
+       myprintf(mystdout, "Failed to converge for omega at i = %d\n", i+1);
 
     delete_mat(freq);
 }

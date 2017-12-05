@@ -47,8 +47,8 @@ meth_tpxinit <- function(meth_X, unmeth_X, inifreq, K, verb,
 }
 
 meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
-                        use_squarem, admix, grp, tmax, wtol,
-                        qn, MAXITER_SQUAREM = 3){
+                        use_squarem, admix = TRUE, grp=NULL,
+                        tmax = 10000, wtol=10^{-4}, qn=100, MAXITER_SQUAREM = 3){
   if(!inherits(meth_X,"simple_triplet_matrix")){ stop("meth_X needs to be a simple_triplet_matrix") }
   if(!inherits(unmeth_X,"simple_triplet_matrix")){ stop("unmeth_X needs to be a simple_triplet_matrix") }
 
@@ -181,6 +181,8 @@ meth_tpxlpost <- function(meth_X, unmeth_X, freq, omega, admix=TRUE, grp=NULL)
 {
   omega[omega==1] <- 1 - 1e-10;
   omega[omega==0] <- 1e-10;
+  freq[freq == 0] <- 1e-13
+  freq[freq == 1] <- 1 -1e-13
   omega <- meth_normalizetpx(omega, byrow = TRUE)
   if(!inherits(meth_X,"simple_triplet_matrix")){ stop("meth_X needs to be a simple_triplet_matrix.") }
   if(!inherits(unmeth_X,"simple_triplet_matrix")){ stop("unmeth_X needs to be a simple_triplet_matrix.") }
@@ -238,6 +240,12 @@ meth_tpxEM <- function(meth, unmeth, freq_in, omega_in, admix, grp)
   p <- nrow(freq_in)
   K <- ncol(freq_in)
 
+  omega_in[omega_in==1] <- 1 - 1e-13;
+  omega_in[omega_in==0] <- 1e-13;
+  freq_in[freq_in == 0] <- 1e-13
+  freq_in[freq_in == 1] <- 1 -1e-13
+  omega_in <- meth_normalizetpx(omega_in, byrow = TRUE)
+
   m_lambda <- omega_in %*% t(freq_in)
   m_temp <- (meth/m_lambda)
   m_matrix <- (m_temp %*% freq_in)*omega_in
@@ -263,6 +271,8 @@ meth_tpxQ <- function(freq, omega, doc, wrd){
 
   omega[omega==1] <- 1 - 1e-14;
   omega[omega==0] <- 1e-14;
+  freq[freq == 0] <- 1e-13
+  freq[freq == 1] <- 1 -1e-13
   omega <- meth_normalizetpx(omega, byrow = TRUE)
 
   if(length(wrd)!=length(doc)){stop("index mis-match in tpxQ") }
@@ -301,6 +311,8 @@ meth_tpxweights <- function(n, p, mvo, uvo, wrd, doc, start,
   K <- ncol(freq)
   start[start == 0] <- 0.1/K
   start <- start/rowSums(start)
+  freq[freq == 0] = 1e-13
+  freq[freq == 1] = 1 - 1e-13
   omega <- .C("Romega",
               n = as.integer(n),
               p = as.integer(p),

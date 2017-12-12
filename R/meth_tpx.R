@@ -81,6 +81,7 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
                      admix=admix, grp=grp)
 
   iter <- 1;
+  num <- 0
   while( update  && iter < tmax ){
     if(admix && wtol > 0){
       Wfit <- meth_tpxweights(n=nrow(meth_X), p=ncol(meth_X), mvo=mvo, uvo = uvo, wrd=wrd, doc=doc,
@@ -159,6 +160,10 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
     iter <- iter+1
     freq <- move$freq
     omega <- move$omega
+
+    ll <- list(omega = omega, freq = freq, L=L)
+    num <- num +1
+    save(ll, file = paste0("omega_freq_L_", num, ".rda"))
   }
 
   ## final log posterior
@@ -311,9 +316,9 @@ meth_tpxweights <- function(n, p, mvo, uvo, wrd, doc, start,
   K <- ncol(freq)
   start[start == 0] <- 0.1/K
   start <- start/rowSums(start)
-  freq[freq == 0] = 1e-13
-  freq[freq == 1] = 1 - 1e-13
-  omega <- .C("Romega",
+  freq[freq == 0] = 1e-05
+  freq[freq == 1] = 1 - 1e-05
+  omega1 <- .C("Romega",
               n = as.integer(n),
               p = as.integer(p),
               K = as.integer(K),
@@ -328,7 +333,12 @@ meth_tpxweights <- function(n, p, mvo, uvo, wrd, doc, start,
               tmax = as.integer(tmax),
               verb = as.integer(verb),
               PACKAGE="methClust")
-  return(t(matrix(omega$W, nrow=ncol(freq), ncol=n)))
+
+  omega_mat <- t(matrix(omega1$W, nrow=ncol(freq), ncol=n))
+  if(length(which(is.na(rowSums(omega_mat)))) > 0){
+    omega_mat[which(is.na(rowSums(omega_mat))),] <- start[which(is.na(rowSums(omega_mat))),]
+  }
+  return(omega_mat)
 }
 
 

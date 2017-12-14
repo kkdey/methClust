@@ -161,9 +161,9 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
     freq <- move$freq
     omega <- move$omega
 
-    ll <- list(omega = omega, freq = freq, L=L)
-    num <- num +1
-    save(ll, file = paste0("omega_freq_L_", num, ".rda"))
+#    ll <- list(omega = omega, freq = freq, L=L)
+#    num <- num +1
+#    save(ll, file = paste0("omega_freq_L_", num, ".rda"))
   }
 
   ## final log posterior

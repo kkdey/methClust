@@ -9,4 +9,7 @@ Description: Posterior maximization of a grade of membership model tracking numb
 License: GPL-3
 URL: http://kkdey.github.io
 RoxygenNote: 6.0.1
-
+Imports: 
+    SQUAREM,
+    boot,
+    slam

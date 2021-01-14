@@ -136,7 +136,7 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
                                admix=admix, grp=grp)
     }
 
-    dif <- (QNup$L-L)
+    dif <- (QNup$L-L)/(L+0.001)
 
     L <- QNup$L
 

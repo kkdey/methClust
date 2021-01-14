@@ -8,7 +8,7 @@ Maintainer: Kushal K Dey <kkdey@uchicago.edu>
 Description: Posterior maximization of a grade of membership model tracking number of methylated and unmethylated CpG sites across genome.
 License: GPL-3
 URL: http://kkdey.github.io
-RoxygenNote: 6.0.1
+RoxygenNote: 7.1.1
 Imports: 
     SQUAREM,
     boot,

@@ -137,14 +137,13 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
     }
 
     dif <- (QNup$L-L)
-    dif2 <- abs(dif/(L+0.001))
+    dif2 <- abs(dif)/(L+0.001)
 
     L <- QNup$L
 
-
     ## check convergence
     if(abs(dif2) < tol){
-      if(sum(abs(freq-move$freq)) < tol){ update = FALSE } }
+      if(sum(abs(freq-move$freq))/sum(abs(freq)) < tol){ update = FALSE } }
 
     ## print
     if(verb>0 && (iter-1)%%ceiling(5/verb)==0 && iter>0){

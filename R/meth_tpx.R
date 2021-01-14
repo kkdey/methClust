@@ -137,7 +137,7 @@ meth_tpxfit <- function(meth_X, unmeth_X, freq, tol, verb,
     }
 
     dif <- (QNup$L-L)
-    dif2 <- abs(dif)/(L+0.001)
+    dif2 <- abs(dif/(L+0.001))
 
     L <- QNup$L
 

@@ -74,7 +74,7 @@ meth_topics <- function(meth,
 
   freq=matrix(tpx$freq[,worder], ncol=K, dimnames=list(phrase=dimnames(meth_X)[[2]], topic=paste(1:K)) )
   omega=matrix(tpx$omega[,worder], ncol=K, dimnames=list(document=NULL, topic=paste(1:K)) )
-  if(nrow(omega)==nrow(meth_X)){ dimnames(omega)[[1]] <- dimnames(meth_X)[[1]] }
+  if(nrow(omega)==nrow(meth_X)){ rownames(omega) <- dimnames(meth_X)[[1]] }
 
   ## topic object
   out <- list(K=K, L = L,
